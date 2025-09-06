@@ -1,0 +1,154 @@
+import { Student } from "@/entities/all";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { 
+    Plus, 
+    Search,
+    Edit,
+    Camera,
+    Users,
+    ArrowLeft
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+import StudentForm from "../components/students/StudentForm";
+import StudentCard from "../components/students/StudentCard";
+
+export default function StudentsPage() {
+    const [students, setStudents] = useState([]);
+    const [showForm, setShowForm] = useState(false);
+    const [editingStudent, setEditingStudent] = useState(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        loadStudents();
+    }, []);
+
+    const loadStudents = async () => {
+        setIsLoading(true);
+        const data = await Student.list('-created_date');
+        setStudents(data);
+        setIsLoading(false);
+    };
+
+    const handleSubmit = async (studentData) => {
+        if (editingStudent) {
+            await Student.update(editingStudent.id, studentData);
+        } else {
+            await Student.create(studentData);
+        }
+        setShowForm(false);
+        setEditingStudent(null);
+        loadStudents();
+    };
+
+    const handleEdit = (student) => {
+        setEditingStudent(student);
+        setShowForm(true);
+    };
+
+    const filteredStudents = students.filter(student =>
+        student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.student_id?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return (
+        <div className="p-4 lg:p-8 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+            <div className="max-w-6xl mx-auto">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-6">
+                    <Link to={createPageUrl("Dashboard")}>
+                        <Button variant="outline" size="icon">
+                            <ArrowLeft className="w-4 h-4" />
+                        </Button>
+                    </Link>
+                    <div className="flex-1">
+                        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Student Management</h1>
+                        <p className="text-gray-600">Add and manage your classroom roster</p>
+                    </div>
+                    <Button 
+                        onClick={() => setShowForm(!showForm)}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Student
+                    </Button>
+                </div>
+
+                {/* Search and Stats */}
+                <div className="grid lg:grid-cols-4 gap-4 mb-8">
+                    <div className="lg:col-span-3">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Input
+                                placeholder="Search students by name or ID..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="pl-10 bg-white/90 backdrop-blur-sm shadow-lg border-0"
+                            />
+                        </div>
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-4 border-0">
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-gray-900">{students.length}</div>
+                            <div className="text-sm text-gray-600">Total Students</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Student Form */}
+                {showForm && (
+                    <div className="mb-8">
+                        <StudentForm
+                            student={editingStudent}
+                            onSubmit={handleSubmit}
+                            onCancel={() => {
+                                setShowForm(false);
+                                setEditingStudent(null);
+                            }}
+                        />
+                    </div>
+                )}
+
+                {/* Students Grid */}
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredStudents.map((student) => (
+                        <StudentCard
+                            key={student.id}
+                            student={student}
+                            onEdit={handleEdit}
+                        />
+                    ))}
+                    
+                    {filteredStudents.length === 0 && !isLoading && (
+                        <div className="lg:col-span-3 text-center py-12">
+                            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                                {searchTerm ? 'No students found' : 'No students yet'}
+                            </h3>
+                            <p className="text-gray-600 mb-4">
+                                {searchTerm 
+                                    ? 'Try adjusting your search terms' 
+                                    : 'Add students to start taking attendance with AI'
+                                }
+                            </p>
+                            {!searchTerm && (
+                                <Button 
+                                    onClick={() => setShowForm(true)}
+                                    className="bg-gradient-to-r from-blue-600 to-indigo-600"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add Your First Student
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,86 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function RecentAttendance({ attendance, students, isLoading }) {
+    const getStudentName = (studentId) => {
+        const student = students.find(s => s.student_id === studentId);
+        return student?.full_name || 'Unknown Student';
+    };
+
+    const statusConfig = {
+        present: { icon: CheckCircle, color: "bg-green-100 text-green-800", label: "Present" },
+        late: { icon: Clock, color: "bg-yellow-100 text-yellow-800", label: "Late" },
+        absent: { icon: AlertCircle, color: "bg-red-100 text-red-800", label: "Absent" }
+    };
+
+    return (
+        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-blue-600" />
+                    Today's Attendance
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Time In</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Method</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                Array(5).fill(0).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : attendance.length > 0 ? (
+                                attendance.map((record) => {
+                                    const config = statusConfig[record.status];
+                                    return (
+                                        <TableRow key={record.id}>
+                                            <TableCell className="font-medium">
+                                                {getStudentName(record.student_id)}
+                                            </TableCell>
+                                            <TableCell>{record.time_in}</TableCell>
+                                            <TableCell>
+                                                <Badge className={`${config.color} flex items-center gap-1 w-fit`}>
+                                                    <config.icon className="w-3 h-3" />
+                                                    {config.label}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">
+                                                    {record.detection_method}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center py-8">
+                                        <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                        <p className="text-gray-500">No attendance recorded today</p>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}

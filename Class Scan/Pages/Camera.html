@@ -1,0 +1,273 @@
+import React, { useState, useRef, useEffect } from "react";
+import { Student, Attendance } from "@/entities/all";
+import { InvokeLLM } from "@/integrations/Core";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+    Camera as CameraIcon, 
+    Square,
+    RotateCcw,
+    CheckCircle,
+    AlertCircle,
+    Users,
+    ArrowLeft
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+import CameraInterface from "../components/camera/CameraInterface";
+import DetectedStudents from "../components/camera/DetectedStudents";
+import AttendanceConfirmation from "../components/camera/AttendanceConfirmation";
+
+export default function CameraPage() {
+    const [isCapturing, setIsCapturing] = useState(false);
+    const [capturedImage, setCapturedImage] = useState(null);
+    const [detectedStudents, setDetectedStudents] = useState([]);
+    const [students, setStudents] = useState([]);
+    const [todayAttendance, setTodayAttendance] = useState([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState(null);
+    const [attendanceMarked, setAttendanceMarked] = useState([]);
+
+    useEffect(() => {
+        loadStudents();
+        loadTodayAttendance();
+    }, []);
+
+    const loadStudents = async () => {
+        try {
+            const data = await Student.filter({ status: 'active' });
+            setStudents(data);
+        } catch (error) {
+            setError("Failed to load students");
+        }
+    };
+
+    const loadTodayAttendance = async () => {
+        try {
+            const today = format(new Date(), 'yyyy-MM-dd');
+            const data = await Attendance.filter({ date: today });
+            setTodayAttendance(data);
+        } catch (error) {
+            console.error("Failed to load today's attendance", error);
+        }
+    };
+
+    const handleCapture = (imageData) => {
+        setCapturedImage(imageData);
+        setIsCapturing(false);
+        processImage(imageData);
+    };
+
+    const processImage = async (imageData) => {
+        setIsProcessing(true);
+        setError(null);
+        
+        try {
+            // Simulate face detection and identification
+            // In a real app, this would use actual face recognition
+            const result = await InvokeLLM({
+                prompt: `Analyze this classroom image and detect faces. For each detected face, provide a confidence score and estimated position. Return a JSON object with detected faces information.`,
+                response_json_schema: {
+                    type: "object",
+                    properties: {
+                        faces_detected: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    face_id: { type: "string" },
+                                    confidence: { type: "number" },
+                                    position_x: { type: "number" },
+                                    position_y: { type: "number" }
+                                }
+                            }
+                        },
+                        total_faces: { type: "number" }
+                    }
+                }
+            });
+
+            // Mock identification based on active students
+            const mockDetected = students.slice(0, Math.min(result.total_faces || 0, students.length)).map((student, index) => ({
+                ...student,
+                confidence: 0.85 + (Math.random() * 0.14), // 0.85-0.99
+                face_position: {
+                    x: 50 + (index * 30) % 200,
+                    y: 50 + Math.floor(index / 3) * 100
+                }
+            }));
+
+            setDetectedStudents(mockDetected);
+        } catch (error) {
+            setError("Failed to process image. Please try again.");
+            console.error("Face detection error:", error);
+        }
+        
+        setIsProcessing(false);
+    };
+
+    const markAttendance = async (confirmedStudents) => {
+        try {
+            const attendanceRecords = confirmedStudents.map(student => ({
+                student_id: student.student_id,
+                date: format(new Date(), 'yyyy-MM-dd'),
+                time_in: format(new Date(), 'HH:mm'),
+                status: 'present',
+                detection_method: 'camera',
+                confidence_score: student.confidence
+            }));
+
+            await Attendance.bulkCreate(attendanceRecords);
+            setAttendanceMarked(confirmedStudents);
+            
+            // Reload today's attendance
+            loadTodayAttendance();
+            
+            // Reset for next capture
+            setTimeout(() => {
+                setCapturedImage(null);
+                setDetectedStudents([]);
+                setAttendanceMarked([]);
+            }, 3000);
+        } catch (error) {
+            setError("Failed to mark attendance. Please try again.");
+        }
+    };
+
+    const resetCapture = () => {
+        setCapturedImage(null);
+        setDetectedStudents([]);
+        setError(null);
+        setAttendanceMarked([]);
+        setIsCapturing(true);
+    };
+
+    const todayPresent = todayAttendance.filter(a => a.status === 'present').length;
+    const todayLate = todayAttendance.filter(a => a.status === 'late').length;
+
+    return (
+        <div className="p-4 lg:p-8 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+            <div className="max-w-6xl mx-auto">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-6">
+                    <Link to={createPageUrl("Dashboard")}>
+                        <Button variant="outline" size="icon">
+                            <ArrowLeft className="w-4 h-4" />
+                        </Button>
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Take Attendance</h1>
+                        <p className="text-gray-600">Point camera at students to automatically mark attendance</p>
+                    </div>
+                </div>
+
+                {error && (
+                    <Alert variant="destructive" className="mb-6">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+
+                <div className="grid lg:grid-cols-2 gap-8">
+                    {/* Camera Section */}
+                    <div className="space-y-6">
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-0">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <CameraIcon className="w-5 h-5 text-blue-600" />
+                                    Camera View
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <CameraInterface 
+                                    onCapture={handleCapture}
+                                    isCapturing={isCapturing}
+                                    setIsCapturing={setIsCapturing}
+                                    capturedImage={capturedImage}
+                                />
+                                
+                                {capturedImage && !attendanceMarked.length && (
+                                    <div className="flex gap-3 mt-4">
+                                        <Button 
+                                            variant="outline" 
+                                            onClick={resetCapture}
+                                            className="flex-1"
+                                        >
+                                            <RotateCcw className="w-4 h-4 mr-2" />
+                                            Retake
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Processing Status */}
+                        {isProcessing && (
+                            <Card className="bg-blue-50 border-blue-200">
+                                <CardContent className="p-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                                        <div>
+                                            <p className="font-medium text-blue-900">Processing Image...</p>
+                                            <p className="text-blue-700 text-sm">Detecting and identifying faces</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+
+                    {/* Detection Results */}
+                    <div className="space-y-6">
+                        {detectedStudents.length > 0 && !attendanceMarked.length && (
+                            <DetectedStudents 
+                                students={detectedStudents}
+                                onConfirm={markAttendance}
+                            />
+                        )}
+
+                        {attendanceMarked.length > 0 && (
+                            <AttendanceConfirmation students={attendanceMarked} />
+                        )}
+
+                        {/* Class Overview */}
+                        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-indigo-600" />
+                                    Class Overview
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Total Students</span>
+                                        <Badge variant="outline" className="px-3 py-1">
+                                            {students.length}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Marked Present Today</span>
+                                        <Badge className="bg-green-100 text-green-800 px-3 py-1">
+                                            {todayPresent}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Not Yet Marked</span>
+                                        <Badge variant="secondary" className="px-3 py-1">
+                                            {students.length - (todayPresent + todayLate)}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

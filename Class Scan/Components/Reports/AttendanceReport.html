@@ -1,0 +1,101 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { BarChart3, Users } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export default function AttendanceReport({ students, attendance, selectedDate, isLoading }) {
+    const getStudentAttendance = (studentId) => {
+        return attendance.filter(a => 
+            a.student_id === studentId && 
+            a.date === selectedDate
+        )[0];
+    };
+
+    const getAttendanceRate = (studentId) => {
+        const studentAttendance = attendance.filter(a => a.student_id === studentId);
+        const presentDays = studentAttendance.filter(a => a.status === 'present' || a.status === 'late').length;
+        return studentAttendance.length > 0 ? (presentDays / studentAttendance.length * 100) : 0;
+    };
+
+    return (
+        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-indigo-600" />
+                    Daily Attendance Report
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                    Showing data for {new Date(selectedDate).toLocaleDateString()}
+                </p>
+            </CardHeader>
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Grade</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Rate</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                Array(5).fill(0).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                                        <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : students.map((student) => {
+                                const dayAttendance = getStudentAttendance(student.student_id);
+                                const rate = getAttendanceRate(student.student_id);
+                                
+                                return (
+                                    <TableRow key={student.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                                    {student.full_name?.split(' ').map(n => n[0]).join('')}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium">{student.full_name}</p>
+                                                    <p className="text-xs text-gray-500">{student.student_id}</p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>{student.grade || '-'}</TableCell>
+                                        <TableCell>
+                                            {dayAttendance ? (
+                                                <Badge className={
+                                                    dayAttendance.status === 'present' 
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : dayAttendance.status === 'late'
+                                                        ? 'bg-yellow-100 text-yellow-800'
+                                                        : 'bg-red-100 text-red-800'
+                                                }>
+                                                    {dayAttendance.status}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline">Not marked</Badge>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <span className="text-sm font-medium">
+                                                {rate.toFixed(0)}%
+                                            </span>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}

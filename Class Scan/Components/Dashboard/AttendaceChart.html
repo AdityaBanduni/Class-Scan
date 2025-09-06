@@ -1,0 +1,58 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp } from "lucide-react";
+
+export default function AttendanceChart({ students }) {
+    // Mock data for the last 7 days
+    const chartData = [
+        { day: 'Mon', present: Math.floor(students.length * 0.9), total: students.length },
+        { day: 'Tue', present: Math.floor(students.length * 0.85), total: students.length },
+        { day: 'Wed', present: Math.floor(students.length * 0.92), total: students.length },
+        { day: 'Thu', present: Math.floor(students.length * 0.88), total: students.length },
+        { day: 'Fri', present: Math.floor(students.length * 0.95), total: students.length },
+        { day: 'Sat', present: Math.floor(students.length * 0.8), total: students.length },
+        { day: 'Sun', present: Math.floor(students.length * 0.75), total: students.length },
+    ];
+
+    return (
+        <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-indigo-600" />
+                    Weekly Attendance Trend
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="day" stroke="#64748b" />
+                            <YAxis stroke="#64748b" />
+                            <Tooltip 
+                                contentStyle={{
+                                    backgroundColor: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                                }}
+                            />
+                            <Bar 
+                                dataKey="present" 
+                                fill="url(#gradient)" 
+                                radius={[4, 4, 0, 0]}
+                            />
+                            <defs>
+                                <linearGradient id="gradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#3b82f6" />
+                                    <stop offset="100%" stopColor="#6366f1" />
+                                </linearGradient>
+                            </defs>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}

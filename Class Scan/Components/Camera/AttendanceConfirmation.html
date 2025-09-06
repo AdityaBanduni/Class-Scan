@@ -1,0 +1,57 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle, Users } from "lucide-react";
+import { motion } from "framer-motion";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+
+export default function AttendanceConfirmation({ students }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+        >
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white shadow-2xl border-0">
+                <CardHeader className="text-center">
+                    <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring" }}
+                        className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                    >
+                        <CheckCircle className="w-8 h-8 text-white" />
+                    </motion.div>
+                    <CardTitle className="text-2xl text-white">
+                        Attendance Marked Successfully!
+                    </CardTitle>
+                    <p className="text-green-100">
+                        {students.length} student{students.length !== 1 ? 's' : ''} marked present
+                    </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        {students.map((student) => (
+                            <motion.div
+                                key={student.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 * students.indexOf(student) }}
+                                className="flex items-center gap-2 bg-white/20 rounded-lg p-3"
+                            >
+                                <Avatar className="w-8 h-8">
+                                    <AvatarImage src={student.photo_url} />
+                                    <AvatarFallback className="bg-white/30 text-white text-xs">
+                                        {student.full_name?.split(' ').map(n => n[0]).join('')}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm font-medium text-white truncate">
+                                    {student.full_name}
+                                </span>
+                            </motion.div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        </motion.div>
+    );
+}

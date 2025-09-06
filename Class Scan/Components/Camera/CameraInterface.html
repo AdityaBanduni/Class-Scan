@@ -1,0 +1,131 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { Button } from "@/components/ui/button";
+import { Camera, Square } from "lucide-react";
+
+export default function CameraInterface({ onCapture, isCapturing, setIsCapturing, capturedImage }) {
+    const videoRef = useRef(null);
+    const streamRef = useRef(null);
+    const canvasRef = useRef(null);
+    const [isCameraReady, setIsCameraReady] = useState(false);
+
+    useEffect(() => {
+        if (isCapturing) {
+            startCamera();
+        } else {
+            stopCamera();
+        }
+        return () => stopCamera();
+    }, [isCapturing]);
+
+    const startCamera = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+            streamRef.current = stream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+            setIsCameraReady(true);
+        } catch (err) {
+            console.error("Error accessing camera:", err);
+        }
+    };
+
+    const stopCamera = () => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+        setIsCameraReady(false);
+    };
+
+    const capturePhoto = () => {
+        if (!videoRef.current || !isCameraReady) return;
+
+        const canvas = canvasRef.current;
+        const video = videoRef.current;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+        onCapture(imageData);
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl">
+                {!capturedImage ? (
+                    <>
+                        <video
+                            ref={videoRef}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="absolute inset-0 w-full h-full object-cover"
+                        />
+                        {!isCameraReady && isCapturing && (
+                            <div className="absolute inset-0 flex items-center justify-center text-white bg-black/50">
+                                <div className="text-center">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2" />
+                                    <p>Starting camera...</p>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Camera overlay */}
+                        <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute inset-4 border-2 border-white/50 border-dashed rounded-lg flex items-center justify-center">
+                                <div className="bg-black/50 text-white px-4 py-2 rounded-lg backdrop-blur-sm">
+                                    <p className="text-sm font-medium">Point camera at students</p>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <img 
+                        src={capturedImage} 
+                        alt="Captured classroom" 
+                        className="absolute inset-0 w-full h-full object-cover"
+                    />
+                )}
+            </div>
+            
+            <canvas ref={canvasRef} className="hidden" />
+            
+            <div className="flex justify-center">
+                {!capturedImage && (
+                    <div className="flex gap-4">
+                        {!isCapturing ? (
+                            <Button
+                                onClick={() => setIsCapturing(true)}
+                                size="lg"
+                                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg px-8"
+                            >
+                                <Camera className="w-5 h-5 mr-2" />
+                                Start Camera
+                            </Button>
+                        ) : (
+                            <Button
+                                onClick={capturePhoto}
+                                disabled={!isCameraReady}
+                                size="lg"
+                                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg px-8"
+                            >
+                                <Square className="w-5 h-5 mr-2" />
+                                Capture
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

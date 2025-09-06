@@ -1,0 +1,169 @@
+import React, { useState, useEffect } from "react";
+import { Student, Attendance } from "@/entities/all";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Users,
+    Camera,
+    Calendar,
+    TrendingUp,
+    Clock,
+    CheckCircle,
+    BarChart3 // Added BarChart3 import
+} from "lucide-react";
+import { format } from "date-fns";
+
+import QuickStats from "../components/dashboard/QuickStats";
+import RecentAttendance from "../components/dashboard/RecentAttendance";
+import AttendanceChart from "../components/dashboard/AttendanceChart";
+
+export default function Dashboard() {
+    const [students, setStudents] = useState([]);
+    const [todayAttendance, setTodayAttendance] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        loadData();
+    }, []);
+
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const [studentsData, attendanceData] = await Promise.all([
+                Student.list(),
+                Attendance.filter({ date: format(new Date(), 'yyyy-MM-dd') })
+            ]);
+            setStudents(studentsData);
+            setTodayAttendance(attendanceData);
+        } catch (error) {
+            console.error('Error loading data:', error);
+        }
+        setIsLoading(false);
+    };
+
+    const todayPresent = todayAttendance.filter(a => a.status === 'present').length;
+    const todayLate = todayAttendance.filter(a => a.status === 'late').length;
+    const attendanceRate = students.length > 0 ? ((todayPresent + todayLate) / students.length * 100) : 0;
+
+    return (
+        <div className="p-4 lg:p-8 space-y-8 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+            <div className="max-w-7xl mx-auto">
+                {/* Header */}
+                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
+                    <div>
+                        <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                            Welcome Back, Teacher! 👋
+                        </h1>
+                        <p className="text-gray-600">
+                            {format(new Date(), 'EEEE, MMMM d, yyyy')} • Ready to take attendance?
+                        </p>
+                    </div>
+                    <Link to={createPageUrl("Camera")}>
+                        <Button size="lg" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-200 w-full lg:w-auto">
+                            <Camera className="w-5 h-5 mr-2" />
+                            Take Attendance
+                        </Button>
+                    </Link>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <QuickStats
+                        title="Total Students"
+                        value={students.length}
+                        icon={Users}
+                        bgColor="from-blue-500 to-blue-600"
+                    />
+                    <QuickStats
+                        title="Present Today"
+                        value={todayPresent}
+                        icon={CheckCircle}
+                        bgColor="from-green-500 to-green-600"
+                    />
+                    <QuickStats
+                        title="Late Today"
+                        value={todayLate}
+                        icon={Clock}
+                        bgColor="from-yellow-500 to-orange-500"
+                    />
+                    <QuickStats
+                        title="Attendance Rate"
+                        value={`${attendanceRate.toFixed(0)}%`}
+                        icon={TrendingUp}
+                        bgColor="from-purple-500 to-purple-600"
+                    />
+                </div>
+
+                {/* Main Content Grid */}
+                <div className="grid lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-6">
+                        <RecentAttendance
+                            attendance={todayAttendance}
+                            students={students}
+                            isLoading={isLoading}
+                        />
+
+                        <AttendanceChart students={students} />
+                    </div>
+
+                    <div className="space-y-6">
+                        {/* Quick Actions */}
+                        <Card className="bg-white/80 backdrop-blur-sm shadow-xl border-0">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="flex items-center gap-2 text-lg">
+                                    <Calendar className="w-5 h-5 text-blue-600" />
+                                    Quick Actions
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <Link to={createPageUrl("Students")} className="block">
+                                    <Button variant="outline" className="w-full justify-start hover:bg-blue-50 border-blue-200">
+                                        <Users className="w-4 h-4 mr-2" />
+                                        Manage Students
+                                    </Button>
+                                </Link>
+                                <Link to={createPageUrl("Reports")} className="block">
+                                    <Button variant="outline" className="w-full justify-start hover:bg-purple-50 border-purple-200">
+                                        <BarChart3 className="w-4 h-4 mr-2" />
+                                        View Reports
+                                    </Button>
+                                </Link>
+                            </CardContent>
+                        </Card>
+
+                        {/* Today's Summary */}
+                        <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-xl border-0">
+                            <CardHeader>
+                                <CardTitle className="text-white">Today's Summary</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-indigo-100">Total Students</span>
+                                        <span className="font-bold text-xl">{students.length}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-indigo-100">Checked In</span>
+                                        <span className="font-bold text-xl text-green-300">{todayPresent}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-indigo-100">Late Arrivals</span>
+                                        <span className="font-bold text-xl text-yellow-300">{todayLate}</span>
+                                    </div>
+                                    <div className="pt-3 border-t border-indigo-400">
+                                        <div className="text-center">
+                                            <span className="text-2xl font-bold">{attendanceRate.toFixed(0)}%</span>
+                                            <p className="text-indigo-100 text-sm">Attendance Rate</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
